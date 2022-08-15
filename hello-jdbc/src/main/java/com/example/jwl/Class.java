@@ -5,19 +5,12 @@ package com.example.jwl;
  */
 @Table(name = "t_cls")
 public class Class {
-    private int id;
+    @Id
+    private String uuid;
     @Column(name = "head_teacher_id")
     private int headTeacherId;
     @Column(name = "student_num")
     private int studentNum;
-
-    public int getId() {
-        return id;
-    }
-
-    public void setId(int id) {
-        this.id = id;
-    }
 
     public int getHeadTeacherId() {
         return headTeacherId;

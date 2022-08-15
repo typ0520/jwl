@@ -163,6 +163,13 @@ public class DBUtils {
     }
 
     private static Field getPrimaryField(java.lang.Class clazz) throws NoSuchFieldException {
+        Field targetField = null;
+        for (Field field : clazz.getDeclaredFields()) {
+            Id id = field.getAnnotation(Id.class);
+            if (id != null) {
+                return field;
+            }
+        }
         return clazz.getDeclaredField("id");
     }
 
