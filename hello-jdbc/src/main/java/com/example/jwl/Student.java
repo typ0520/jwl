@@ -9,6 +9,12 @@ public class Student {
     private String name;
     private String email;
 
+    @Column(name = "obj_id")
+    private int objId;
+
+    @OneToOne(joinColumn = "obj_id")
+    private Student obj;
+
     public Student() {
     }
 

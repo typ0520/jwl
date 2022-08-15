@@ -5,6 +5,8 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * @author tong
@@ -121,13 +123,23 @@ public class DBUtils {
         return deleted;
     }
 
-    public static <T> T findById(Connection conn, java.lang.Class<T> clazz, int id) throws Throwable {
+    public static <T> T findById(Connection conn, java.lang.Class<T> clazz, Object id) throws Throwable {
+        return findById(conn, clazz, id, new HashMap());
+    }
+
+    private static <T> T findById(Connection conn, java.lang.Class<T> clazz, Object id, Map memos) throws Throwable {
         //select id, name, email from student where id = ?
         T result = null;
         StringBuilder sqlBuilder = new StringBuilder("select ");
         String sep = "";
         for (Field field : clazz.getDeclaredFields()) {
-            sqlBuilder.append(sep).append(getFieldName(field));
+            sqlBuilder.append(sep);
+            OneToOne oneToOne = field.getAnnotation(OneToOne.class);
+            if (oneToOne != null) {
+                sqlBuilder.append(oneToOne.joinColumn());
+            } else {
+                sqlBuilder.append(getFieldName(field));
+            }
             sep = ",";
         }
         sqlBuilder.append(" from ").append(getTableName(clazz));
@@ -138,13 +150,20 @@ public class DBUtils {
         Field primaryField = getPrimaryField(clazz);
         primaryField.setAccessible(true);
         try (PreparedStatement preparedStatement = conn.prepareStatement(sql);) {
-            preparedStatement.setInt(1, id);
+            if (id.getClass() == String.class) {
+                preparedStatement.setString(1, (String) id);
+            } else if (id.getClass() == Integer.class) {
+                preparedStatement.setInt(1, (Integer) id);
+            } else {
+                //TODO 暂不实现
+            }
             System.out.println(preparedStatement);
             preparedStatement.executeQuery();
             ResultSet rs = preparedStatement.executeQuery();
 
             if (rs.next()) {
                 result = clazz.newInstance();
+                memos.put(id, result);
                 for (Field field : clazz.getDeclaredFields()) {
                     field.setAccessible(true);
                     if (field.getType() == String.class) {
@@ -152,7 +171,11 @@ public class DBUtils {
                     } else if (field.getType() == int.class || field.getType() == Integer.class) {
                         field.set(result, rs.getInt(getFieldName(field)));
                     } else {
-                        //TODO 暂不实现
+                        OneToOne oneToOne = field.getAnnotation(OneToOne.class);
+                        if (oneToOne != null) {
+                            Object val = rs.getObject(oneToOne.joinColumn());
+                            field.set(result, memos.getOrDefault(id, findById(conn, field.getType(), val)));
+                        }
                     }
                 }
             }
