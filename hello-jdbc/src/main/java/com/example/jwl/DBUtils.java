@@ -14,11 +14,11 @@ public class DBUtils {
         StringBuilder sqlBuilder = new StringBuilder("insert into ");
         StringBuilder placeholderBuilder = new StringBuilder();
         String sep = "";
-        sqlBuilder.append(getTableName(model));
+        sqlBuilder.append(getTableName(model.getClass()));
         sqlBuilder.append("(");
         for (Field field : model.getClass().getDeclaredFields()) {
-            if (getPrimaryField(model) == field) {
-                break;
+            if (field.equals(getPrimaryField(model.getClass()))) {
+                continue;
             }
             sqlBuilder.append(sep).append(getFieldName(field));
             placeholderBuilder.append(sep).append("?");
@@ -34,8 +34,8 @@ public class DBUtils {
              PreparedStatement preparedStatement2 = conn.prepareStatement("select LAST_INSERT_ID();");) {
             int idx = 1;
             for (Field field : model.getClass().getDeclaredFields()) {
-                if (getPrimaryField(model) == field) {
-                    break;
+                if (field.equals(getPrimaryField(model.getClass()))) {
+                    continue;
                 }
                 field.setAccessible(true);
                 Object val = field.get(model);
@@ -43,13 +43,15 @@ public class DBUtils {
                     preparedStatement.setString(idx++, (String) val);
                 } else if (field.getType() == int.class || field.getType() == Integer.class) {
                     preparedStatement.setInt(idx++, (Integer) val);
+                } else {
+                    //TODO 暂不实现
                 }
             }
             System.out.println(preparedStatement);
             preparedStatement.executeUpdate();
             ResultSet rs2 = preparedStatement2.executeQuery();
             if (rs2.next()) {
-                Field primaryField = getPrimaryField(model);
+                Field primaryField = getPrimaryField(model.getClass());
                 primaryField.setAccessible(true);
                 primaryField.set(model, rs2.getInt(1));
             }
@@ -58,15 +60,125 @@ public class DBUtils {
         }
     }
 
-    private static <T> Field getPrimaryField(T model) throws NoSuchFieldException {
-        return model.getClass().getDeclaredField("id");
+    public static boolean update(Connection conn, Object model) throws Throwable {
+        //update student set name=?,email=? where id=?
+        boolean updated = false;
+        StringBuilder sqlBuilder = new StringBuilder("update ");
+        String sep = "";
+        sqlBuilder.append(getTableName(model.getClass()));
+        sqlBuilder.append(" set ");
+        for (Field field : model.getClass().getDeclaredFields()) {
+            if (field.equals(getPrimaryField(model.getClass()))) {
+                continue;
+            }
+            sqlBuilder.append(sep).append(getFieldName(field)).append("=?");
+            sep = ",";
+        }
+        sqlBuilder.append(" where id = ?");
+
+        String sql = sqlBuilder.toString();
+        System.out.println(sql);
+        try (PreparedStatement preparedStatement = conn.prepareStatement(sql);) {
+            int idx = 1;
+            for (Field field : model.getClass().getDeclaredFields()) {
+                if (field.equals(getPrimaryField(model.getClass()))) {
+                    continue;
+                }
+                field.setAccessible(true);
+                Object val = field.get(model);
+                if (field.getType() == String.class) {
+                    preparedStatement.setString(idx++, (String) val);
+                } else if (field.getType() == int.class || field.getType() == Integer.class) {
+                    preparedStatement.setInt(idx++, (Integer) val);
+                } else {
+                    //TODO 暂不实现
+                }
+            }
+            Field primaryField = getPrimaryField(model.getClass());
+            primaryField.setAccessible(true);
+            preparedStatement.setInt(idx, (Integer) primaryField.get(model));
+            System.out.println(preparedStatement);
+            updated = preparedStatement.executeUpdate() > 0;
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return updated;
     }
 
-    private static <T> String getFieldName(Field field) {
+    public static boolean delete(Connection conn, Object model) throws Throwable {
+        //delete from student where id = ?
+        boolean deleted = false;
+        String sql = "delete from " + getTableName(model.getClass()) + " where id = ?";
+        Field primaryField = getPrimaryField(model.getClass());
+        primaryField.setAccessible(true);
+        try (PreparedStatement preparedStatement = conn.prepareStatement(sql);) {
+            preparedStatement.setInt(1, (Integer) primaryField.get(model));
+            System.out.println(preparedStatement);
+            deleted = preparedStatement.executeUpdate() > 0;
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return deleted;
+    }
+
+    public static <T> T findById(Connection conn, java.lang.Class<T> clazz, int id) throws Throwable {
+        //select id, name, email from student where id = ?
+        T result = null;
+        StringBuilder sqlBuilder = new StringBuilder("select ");
+        String sep = "";
+        for (Field field : clazz.getDeclaredFields()) {
+            sqlBuilder.append(sep).append(getFieldName(field));
+            sep = ",";
+        }
+        sqlBuilder.append(" from ").append(getTableName(clazz));
+        sqlBuilder.append(" where id = ?");
+        String sql = sqlBuilder.toString();
+        System.out.println(sql);
+
+        Field primaryField = getPrimaryField(clazz);
+        primaryField.setAccessible(true);
+        try (PreparedStatement preparedStatement = conn.prepareStatement(sql);) {
+            preparedStatement.setInt(1, id);
+            System.out.println(preparedStatement);
+            preparedStatement.executeQuery();
+            ResultSet rs = preparedStatement.executeQuery();
+
+            if (rs.next()) {
+                result = clazz.newInstance();
+                for (Field field : clazz.getDeclaredFields()) {
+                    field.setAccessible(true);
+                    if (field.getType() == String.class) {
+                        field.set(result, rs.getString(getFieldName(field)));
+                    } else if (field.getType() == int.class || field.getType() == Integer.class) {
+                        field.set(result, rs.getInt(getFieldName(field)));
+                    } else {
+                        //TODO 暂不实现
+                    }
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return result;
+    }
+
+    private static Field getPrimaryField(java.lang.Class clazz) throws NoSuchFieldException {
+        return clazz.getDeclaredField("id");
+    }
+
+    private static String getFieldName(Field field) {
+        Column column = field.getAnnotation(Column.class);
+        if (column != null) {
+            return column.name();
+        }
         return field.getName().toLowerCase();
     }
 
-    private static <T> String getTableName(T model) {
-        return model.getClass().getSimpleName().toLowerCase();
+    private static String getTableName(java.lang.Class clazz) {
+        Table table = (Table) clazz.getAnnotation(Table.class);
+        if (table != null) {
+            return table.name();
+        }
+        return clazz.getSimpleName().toLowerCase();
     }
 }

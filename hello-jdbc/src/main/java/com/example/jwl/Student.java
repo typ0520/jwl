@@ -3,6 +3,7 @@ package com.example.jwl;
 /**
  * @author tong
  */
+@Table(name = "student")
 public class Student {
     private int id;
     private String name;

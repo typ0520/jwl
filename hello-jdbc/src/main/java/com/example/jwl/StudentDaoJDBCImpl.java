@@ -23,24 +23,19 @@ public class StudentDaoJDBCImpl {
     }
 
     public void save(Student stu) {
-//        try (Connection conn = getConnection();
-//             PreparedStatement preparedStatement = conn.prepareStatement("insert into student(name, email) values (?,?)");
-//             PreparedStatement preparedStatement2 = conn.prepareStatement("select LAST_INSERT_ID();");) {
-//            preparedStatement.setString(1, stu.getName());
-//            preparedStatement.setString(2, stu.getEmail());
-//            preparedStatement.executeUpdate();
-//
-//            ResultSet rs2 = preparedStatement2.executeQuery();
-//            if (rs2.next()) {
-//                stu.setId(rs2.getInt(1));
-//            }
-//        } catch (SQLException e) {
-//            e.printStackTrace();
-//        }
-        try {
-            DBUtils.save(getConnection(), stu);
-        } catch (Throwable e) {
-            throw new RuntimeException(e);
+        try (Connection conn = getConnection();
+             PreparedStatement preparedStatement = conn.prepareStatement("insert into student(name, email) values (?,?)");
+             PreparedStatement preparedStatement2 = conn.prepareStatement("select LAST_INSERT_ID();");) {
+            preparedStatement.setString(1, stu.getName());
+            preparedStatement.setString(2, stu.getEmail());
+            preparedStatement.executeUpdate();
+
+            ResultSet rs2 = preparedStatement2.executeQuery();
+            if (rs2.next()) {
+                stu.setId(rs2.getInt(1));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
         }
     }
 

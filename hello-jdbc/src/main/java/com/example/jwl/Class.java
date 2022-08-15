@@ -3,9 +3,12 @@ package com.example.jwl;
 /**
  * @author tong
  */
+@Table(name = "t_cls")
 public class Class {
     private int id;
+    @Column(name = "head_teacher_id")
     private int headTeacherId;
+    @Column(name = "student_num")
     private int studentNum;
 
     public int getId() {
