@@ -6,15 +6,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
-/**
- * CREATE TABLE `user` (
- *   `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
- *   `name` int(11) DEFAULT NULL,
- *   `email` int(11) DEFAULT NULL,
- *   PRIMARY KEY (`id`)
- * ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
- */
-public class UserDaoJDBCImpl {
+public class StudentDaoJDBCImpl {
     private String jdbcURL = "jdbc:mysql://localhost:3306/demo?useSSL=false";
     private String jdbcUsername = "root";
     private String jdbcPassword = "root";
@@ -30,30 +22,30 @@ public class UserDaoJDBCImpl {
         return connection;
     }
 
-    public void save(User user) {
+    public void save(Student student) {
         try (Connection connection = getConnection();
-             PreparedStatement preparedStatement = connection.prepareStatement("insert into user(name, email) values (?,?)");
+             PreparedStatement preparedStatement = connection.prepareStatement("insert into student(name, email) values (?,?)");
              PreparedStatement preparedStatement2 = connection.prepareStatement("select LAST_INSERT_ID();");) {
-            preparedStatement.setString(1, user.getName());
-            preparedStatement.setString(2, user.getEmail());
+            preparedStatement.setString(1, student.getName());
+            preparedStatement.setString(2, student.getEmail());
             preparedStatement.executeUpdate();
 
             ResultSet rs2 = preparedStatement2.executeQuery();
             if (rs2.next()) {
-                user.setId(rs2.getInt(1));
+                student.setId(rs2.getInt(1));
             }
         } catch (SQLException e) {
             e.printStackTrace();
         }
     }
 
-    public boolean update(User user) {
+    public boolean update(Student student) {
         boolean updated;
         try (Connection connection = getConnection();
-             PreparedStatement statement = connection.prepareStatement("update user set name=?,email=? where id=?");) {
-            statement.setString(1, user.getName());
-            statement.setString(2, user.getEmail());
-            statement.setInt(3, user.getId());
+             PreparedStatement statement = connection.prepareStatement("update student set name=?,email=? where id=?");) {
+            statement.setString(1, student.getName());
+            statement.setString(2, student.getEmail());
+            statement.setInt(3, student.getId());
             System.out.println(statement);
             updated = statement.executeUpdate() > 0;
         } catch (SQLException e) {
@@ -62,28 +54,28 @@ public class UserDaoJDBCImpl {
         return updated;
     }
 
-    public User findById(int id) {
-        User user = null;
+    public Student findById(int id) {
+        Student student = null;
         try (Connection connection = getConnection();
-             PreparedStatement preparedStatement = connection.prepareStatement("select name, email from user where id = ?;");) {
+             PreparedStatement preparedStatement = connection.prepareStatement("select name, email from student where id = ?;");) {
             preparedStatement.setLong(1, id);
             ResultSet rs = preparedStatement.executeQuery();
             if (rs.next()) {
                 String name = rs.getString("name");
                 String email = rs.getString("email");
-                user = new User(id, name, email);
+                student = new Student(id, name, email);
             }
         } catch (SQLException e) {
             e.printStackTrace();
         }
-        return user;
+        return student;
     }
 
-    public boolean delete(User user) {
+    public boolean delete(Student student) {
         boolean deleted;
         try (Connection connection = getConnection();
-             PreparedStatement statement = connection.prepareStatement("delete from user where id = ?");) {
-            statement.setInt(1, user.getId());
+             PreparedStatement statement = connection.prepareStatement("delete from student where id = ?");) {
+            statement.setInt(1, student.getId());
             deleted = statement.executeUpdate() > 0;
         } catch (SQLException e) {
             throw new RuntimeException(e);
