@@ -14,7 +14,7 @@ public class StudentDaoJDBCImpl {
     protected Connection getConnection() {
         Connection connection = null;
         try {
-            Class.forName("com.mysql.jdbc.Driver");
+            java.lang.Class.forName("com.mysql.jdbc.Driver");
             connection = DriverManager.getConnection(jdbcURL, jdbcUsername, jdbcPassword);
         } catch (SQLException | ClassNotFoundException e) {
             e.printStackTrace();
@@ -22,30 +22,35 @@ public class StudentDaoJDBCImpl {
         return connection;
     }
 
-    public void save(Student student) {
-        try (Connection connection = getConnection();
-             PreparedStatement preparedStatement = connection.prepareStatement("insert into student(name, email) values (?,?)");
-             PreparedStatement preparedStatement2 = connection.prepareStatement("select LAST_INSERT_ID();");) {
-            preparedStatement.setString(1, student.getName());
-            preparedStatement.setString(2, student.getEmail());
-            preparedStatement.executeUpdate();
-
-            ResultSet rs2 = preparedStatement2.executeQuery();
-            if (rs2.next()) {
-                student.setId(rs2.getInt(1));
-            }
-        } catch (SQLException e) {
-            e.printStackTrace();
+    public void save(Student stu) {
+//        try (Connection conn = getConnection();
+//             PreparedStatement preparedStatement = conn.prepareStatement("insert into student(name, email) values (?,?)");
+//             PreparedStatement preparedStatement2 = conn.prepareStatement("select LAST_INSERT_ID();");) {
+//            preparedStatement.setString(1, stu.getName());
+//            preparedStatement.setString(2, stu.getEmail());
+//            preparedStatement.executeUpdate();
+//
+//            ResultSet rs2 = preparedStatement2.executeQuery();
+//            if (rs2.next()) {
+//                stu.setId(rs2.getInt(1));
+//            }
+//        } catch (SQLException e) {
+//            e.printStackTrace();
+//        }
+        try {
+            DBUtils.save(getConnection(), stu);
+        } catch (Throwable e) {
+            throw new RuntimeException(e);
         }
     }
 
-    public boolean update(Student student) {
+    public boolean update(Student stu) {
         boolean updated;
         try (Connection connection = getConnection();
              PreparedStatement statement = connection.prepareStatement("update student set name=?,email=? where id=?");) {
-            statement.setString(1, student.getName());
-            statement.setString(2, student.getEmail());
-            statement.setInt(3, student.getId());
+            statement.setString(1, stu.getName());
+            statement.setString(2, stu.getEmail());
+            statement.setInt(3, stu.getId());
             System.out.println(statement);
             updated = statement.executeUpdate() > 0;
         } catch (SQLException e) {
@@ -55,7 +60,7 @@ public class StudentDaoJDBCImpl {
     }
 
     public Student findById(int id) {
-        Student student = null;
+        Student stu = null;
         try (Connection connection = getConnection();
              PreparedStatement preparedStatement = connection.prepareStatement("select name, email from student where id = ?;");) {
             preparedStatement.setLong(1, id);
@@ -63,19 +68,19 @@ public class StudentDaoJDBCImpl {
             if (rs.next()) {
                 String name = rs.getString("name");
                 String email = rs.getString("email");
-                student = new Student(id, name, email);
+                stu = new Student(id, name, email);
             }
         } catch (SQLException e) {
             e.printStackTrace();
         }
-        return student;
+        return stu;
     }
 
-    public boolean delete(Student student) {
+    public boolean delete(Student stu) {
         boolean deleted;
         try (Connection connection = getConnection();
              PreparedStatement statement = connection.prepareStatement("delete from student where id = ?");) {
-            statement.setInt(1, student.getId());
+            statement.setInt(1, stu.getId());
             deleted = statement.executeUpdate() > 0;
         } catch (SQLException e) {
             throw new RuntimeException(e);
