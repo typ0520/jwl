@@ -1,5 +1,7 @@
 package com.example.jwl;
 
+import com.mysql.jdbc.StringUtils;
+
 import java.lang.reflect.Field;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -22,7 +24,13 @@ public class DBUtils {
             if (field.equals(getPrimaryField(model.getClass()))) {
                 continue;
             }
-            sqlBuilder.append(sep).append(getFieldName(field));
+            sqlBuilder.append(sep);
+            OneToOne oneToOne = field.getAnnotation(OneToOne.class);
+            if (oneToOne == null) {
+                sqlBuilder.append(getFieldName(field));
+            } else {
+                sqlBuilder.append(getFieldName(getPrimaryField(field.getType())));
+            }
             placeholderBuilder.append(sep).append("?");
             sep = ",";
         }
@@ -46,7 +54,24 @@ public class DBUtils {
                 } else if (field.getType() == int.class || field.getType() == Integer.class) {
                     preparedStatement.setInt(idx++, (Integer) val);
                 } else {
-                    //TODO 暂不实现
+                    OneToOne oneToOne = field.getAnnotation(OneToOne.class);
+                    if (oneToOne != null) {
+                        Field primaryField = getPrimaryField(field.getType());
+                        if (primaryField.getType() == String.class) {
+                            if (StringUtils.isNullOrEmpty((String) val)) {
+                                preparedStatement.setString(idx++, "");
+                            } else {
+                                Object o = primaryField.get(val);
+                                preparedStatement.setString(idx++, o == null ? "" : (String) o);
+                            }
+                        } else if (primaryField.getType() == int.class || primaryField.getType() == Integer.class) {
+                            preparedStatement.setInt(idx++, (Integer) (val == null ? new Integer(0) : val));
+                        } else {
+                            //TODO 暂不实现
+                        }
+                    } else {
+                        //TODO 暂不实现
+                    }
                 }
             }
             System.out.println(preparedStatement);
