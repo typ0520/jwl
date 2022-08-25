@@ -16,9 +16,9 @@ import java.util.Set;
 /**
  * @author tong
  */
-public class FrameworkServlet extends HttpServlet {
+public class DispatcherServlet extends HttpServlet {
     private final Map<Class<?>, Object> controllerMap = new HashMap<>();
-    private final Map<String, Map<String, BindMethod>> fixedMapping = new HashMap<>();
+    private final Map<String, Map<String, Method>> fixedMapping = new HashMap<>();
     private static final Map<Class<?>, Method> primitiveTypeResolverMap = new HashMap<>();
 
     static {
@@ -63,11 +63,11 @@ public class FrameworkServlet extends HttpServlet {
                 }
                 for (String path : getMapping.value()) {
                     String joinedPath = joinPath(controller.value(), path);
-                    Map<String, BindMethod> methodMapping = fixedMapping.computeIfAbsent("GET", k -> new HashMap<>());
+                    Map<String, Method> methodMapping = fixedMapping.computeIfAbsent("GET", k -> new HashMap<>());
                     if (methodMapping.containsKey(joinedPath)) {
                         throw new RuntimeException("重复了");
                     }
-                    methodMapping.put(joinedPath, new BindMethod(method));
+                    methodMapping.put(joinedPath, method);
                 }
             }
         }
@@ -76,14 +76,14 @@ public class FrameworkServlet extends HttpServlet {
     @Override
     protected void service(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
         if ("GET".equals(req.getMethod())) {
-            Map<String, BindMethod> pathBindMethodMap = fixedMapping.get(req.getMethod());
+            Map<String, Method> pathBindMethodMap = fixedMapping.get(req.getMethod());
             String path = req.getRequestURI();
-            BindMethod bindMethod = pathBindMethodMap.get(path);
+            Method bindMethod = pathBindMethodMap.get(path);
             if (bindMethod != null) {
-                Object instance = controllerMap.get(bindMethod.method.getClass());
-                Object[] args = new Object[bindMethod.method.getParameterCount()];
-                for (int i = 0, size = bindMethod.method.getParameterCount(); i < size; i++) {
-                    Parameter parameter = bindMethod.method.getParameters()[i];
+                Object instance = controllerMap.get(bindMethod.getClass());
+                Object[] args = new Object[bindMethod.getParameterCount()];
+                for (int i = 0, size = bindMethod.getParameterCount(); i < size; i++) {
+                    Parameter parameter = bindMethod.getParameters()[i];
                     Class<?> mType = parameter.getType();
                     if (mType == HttpServletRequest.class) {
                         args[i] = req;
@@ -122,7 +122,7 @@ public class FrameworkServlet extends HttpServlet {
                         }
                         PrintWriter writer = resp.getWriter();
                         try {
-                            Object ret = bindMethod.method.invoke(instance, args);
+                            Object ret = bindMethod.invoke(instance, args);
                             if (ret == null || primitiveTypeResolverMap.containsKey(ret.getClass())) {
                                 writer.write(String.valueOf(ret));
                                 writer.flush();
@@ -160,13 +160,5 @@ public class FrameworkServlet extends HttpServlet {
             sb.append(suffix);
         }
         return sb.toString();
-    }
-
-    class BindMethod {
-        Method method;
-
-        public BindMethod(Method method) {
-            this.method = method;
-        }
     }
 }
