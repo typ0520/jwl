@@ -14,6 +14,7 @@
         <module>hello-servlet</module>
         <module>hello-jsp</module>
         <module>hello-jdbc</module>
+        <module>myspringmvc</module>
     </modules>
 
     <properties>
